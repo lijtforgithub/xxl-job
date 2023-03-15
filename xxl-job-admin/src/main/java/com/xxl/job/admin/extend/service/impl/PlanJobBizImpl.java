@@ -181,15 +181,20 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
                 }
 
                 if (!twoOptions.isEmpty()) {
-                    strBuilder.append(twoOptions.stream().map(planEnum::matchOption).map(Option::getDesc).collect(Collectors.joining("/")));
+                    strBuilder.append(twoOptions.stream().map(planEnum::matchOption).filter(Objects::nonNull).map(Option::getDesc).collect(Collectors.joining("/")));
                 }
 
                 if (!options.isEmpty()) {
-                    strBuilder.append(options.stream().map(planEnum::matchOption).map(Option::getDesc).collect(Collectors.joining("/")));
+                    strBuilder.append(options.stream().map(planEnum::matchOption).filter(Objects::nonNull).map(Option::getDesc).collect(Collectors.joining("/")));
                 }
             }
 
-            return String.format("%s%s%s[%s]", desc, strBuilder.toString(), planJob.getCycleExeTime(), planJob.getJobKey());
+            desc = String.format("%s%s%s[%s]", desc, strBuilder, planJob.getCycleExeTime(), planJob.getJobKey());
+            if (desc.length() > 255) {
+                desc = desc.substring(0, 255);
+            }
+
+            return desc;
         }
     }
 
@@ -212,7 +217,7 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
             }
         }
 
-        return new ReturnT<>(Objects.nonNull(planJob.getLastFireTime()) ? DateUtil.formatDateTime(planJob.getLastFireTime()) : null);
+        return new ReturnT<>(planJob.getJobKey());
     }
 
     @Override
@@ -222,7 +227,9 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
         Long planId = planJobDao.selectByKey(paramDTO.getAppName(), paramDTO.getJobHandler(), paramDTO.getJobKey());
         Assert.notNull(planId, String.format("计划任务【%s:%s:%s】不存在", paramDTO.getAppName(), paramDTO.getJobHandler(), paramDTO.getJobKey()));
 
-        return cancelPlanById(planId.toString());
+        String planIdStr = planId.toString();
+        cancelPlanById(planIdStr);
+        return new ReturnT<>(planIdStr);
     }
 
     private String trimNull(String str) {

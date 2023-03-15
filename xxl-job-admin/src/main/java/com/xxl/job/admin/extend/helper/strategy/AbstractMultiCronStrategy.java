@@ -24,15 +24,11 @@ abstract class AbstractMultiCronStrategy extends AbstractMultiDateStrategy {
         List<String> cronList = getCronList(plan);
         List<Date> dateList = new ArrayList<>(cronList.size());
 
-        Date start = new Date();
-        if (Objects.nonNull(plan.getStartDateTime()) && plan.getStartDateTime().compareTo(start) > 0) {
-            start = plan.getStartDateTime();
-        }
-
         for (String cron : cronList) {
             try {
                 ScheduleBuilder<?> scheduleBuilder = CronScheduleBuilder.cronSchedule(cron);
-                TriggerBuilder<?> triggerBuilder = TriggerBuilder.newTrigger().withSchedule(scheduleBuilder).startAt(start);
+                TriggerBuilder<?> triggerBuilder = TriggerBuilder.newTrigger().withSchedule(scheduleBuilder)
+                        .startAt(plan.getStartDateTime());
 
                 if (Objects.nonNull(plan.getEndDateTime())) {
                     triggerBuilder.endAt(plan.getEndDateTime());

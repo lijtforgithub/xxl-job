@@ -50,14 +50,14 @@ public abstract class AbstractPlanStrategy implements PlanService {
 
     protected Date nextFireTime(PlanJob plan) {
         ScheduleBuilder<?> scheduleBuilder = buildSchedule(plan);
-        TriggerBuilder<?> triggerBuilder = TriggerBuilder.newTrigger().withSchedule(scheduleBuilder);
-
-        Date date = new Date();
-        if (Objects.nonNull(plan.getStartDateTime()) && plan.getStartDateTime().compareTo(date) > 0) {
-            date = plan.getStartDateTime();
+        if (Objects.isNull(scheduleBuilder)) {
+            log.warn("ScheduleBuilder 为空");
+            return null;
         }
+
         // CalendarIntervalScheduleBuilder 的startAt的时分秒就是每周期执行的时间
-        triggerBuilder.startAt(date);
+        TriggerBuilder<?> triggerBuilder = TriggerBuilder.newTrigger().withSchedule(scheduleBuilder)
+                .startAt(plan.getStartDateTime());
 
         if (Objects.nonNull(plan.getEndDateTime())) {
             triggerBuilder.endAt(plan.getEndDateTime());
