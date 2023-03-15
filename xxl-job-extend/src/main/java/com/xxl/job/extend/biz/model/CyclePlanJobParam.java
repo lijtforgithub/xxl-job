@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 public class CyclePlanJobParam extends PlanJobParam {
 
     /**
-     * 计划类型选项 WEEK/MONTH 必填
+     * 计划类型选项 WEEK/MONTH/SEASON 必填
      */
     private List<Integer> planOption;
     /**

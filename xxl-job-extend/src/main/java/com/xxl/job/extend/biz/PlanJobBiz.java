@@ -11,18 +11,18 @@ import com.xxl.job.extend.biz.model.PlanJobParam;
 public interface PlanJobBiz {
 
     /**
-     * 添加一个计划任务
+     * 添加一个计划
      *
      * @param param 参数
-     * @return 任务ID
+     * @return 计划ID
      */
     ReturnT<String> addPlan(PlanJobParam param);
 
     /**
      * 取消计划
      *
-     * @param planId 计划任务ID
-     * @return 上次执行时间
+     * @param planId 计划ID
+     * @return 计划任务jobKey
      */
     ReturnT<String> cancelPlanById(String planId);
 
@@ -30,7 +30,7 @@ public interface PlanJobBiz {
      * 取消计划
      *
      * @param param 计划任务KEY
-     * @return 上次执行时间
+     * @return 计划ID
      */
     ReturnT<String> cancelPlanByJobKey(CancelJobParam param);
 
