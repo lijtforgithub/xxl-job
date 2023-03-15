@@ -96,6 +96,6 @@
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.8.6" level="project" />
     <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy:2.5.10" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.30" level="project" />
-    <orderEntry type="module" module-name="xxl-job-extend" />
+    <orderEntry type="library" name="Maven: com.youma:xxl-job-extend:1.0.0-SNAPSHOT" level="project" />
   </component>
 </module>

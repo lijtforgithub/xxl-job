@@ -1,6 +1,6 @@
 package com.xxl.job.executor;
 
-import com.xxl.job.extend.annotation.EnableXxlJobExtend;
+import com.youma.xxljob.extend.annotation.EnableXxlJobExtend;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 

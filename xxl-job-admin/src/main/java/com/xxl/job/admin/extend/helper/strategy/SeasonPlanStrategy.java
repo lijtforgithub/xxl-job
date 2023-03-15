@@ -1,13 +1,8 @@
 package com.xxl.job.admin.extend.helper.strategy;
 
-import com.xxl.job.admin.extend.helper.AbstractPlanService;
 import com.xxl.job.admin.extend.model.PlanJob;
 import com.xxl.job.extend.biz.enums.PlanEnum;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.CronScheduleBuilder;
-import org.quartz.ScheduleBuilder;
-import org.quartz.Trigger;
-import org.quartz.TriggerBuilder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
@@ -20,9 +15,9 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class SeasonPlanStrategy extends AbstractPlanService {
+class SeasonPlanStrategy extends AbstractMultiCronStrategy {
 
-    private static final Map<Integer, List<Integer>> MONTH_MAP = new HashMap<Integer, List<Integer>>(){{
+    private static final Map<Integer, List<Integer>> MONTH_MAP = new HashMap<Integer, List<Integer>>() {{
         put(PlanEnum.TWO_STAGE_OPTION + 1, new ArrayList<Integer>() {{
             add(1);
             add(4);
@@ -60,54 +55,18 @@ public class SeasonPlanStrategy extends AbstractPlanService {
     }
 
     @Override
-    protected Date nextFireTime(PlanJob plan) {
-        List<Date> dateList = getDateList(plan);
-        Collections.sort(dateList);
-
-        if (!dateList.isEmpty()) {
-            return dateList.get(0);
-        }
-
-        return null;
-    }
-
-    private List<Date> getDateList(PlanJob plan) {
-        String monthCron = getMonthCron(plan);
+    protected List<String> getCronList(PlanJob plan) {
+        List<Integer> monthOptions = plan.getPlanOptionList().stream().filter(o -> o > PlanEnum.TWO_STAGE_OPTION).collect(Collectors.toList());
+        String monthCron = monthOptions.stream().map(MONTH_MAP::get).flatMap(List::stream).sorted().map(Objects::toString).collect(Collectors.joining(DELIMITER));
         List<String> dayCronList = getDayCronList(plan);
-        List<Date> dateList = new ArrayList<>(dayCronList.size());
-
-        Date start = new Date();
-        if (Objects.nonNull(plan.getStartDateTime()) && plan.getStartDateTime().compareTo(start) > 0) {
-            start = plan.getStartDateTime();
-        }
-
+        List<String> cronList = new ArrayList<>(dayCronList.size());
         LocalTime cycleExeTime = plan.getCycleExeTime();
 
         for (String dayCron : dayCronList) {
-            String cron = null;
-            try {
-                cron = String.format("%d %d %d %s %s ?", cycleExeTime.getSecond(), cycleExeTime.getMinute(), cycleExeTime.getHour(), dayCron, monthCron);
-                ScheduleBuilder<?> scheduleBuilder = CronScheduleBuilder.cronSchedule(cron);
-                TriggerBuilder<?> triggerBuilder = TriggerBuilder.newTrigger().withSchedule(scheduleBuilder);
-
-                triggerBuilder.startAt(start);
-                if (Objects.nonNull(plan.getEndDateTime())) {
-                    triggerBuilder.endAt(plan.getEndDateTime());
-                }
-
-                Trigger trigger = triggerBuilder.build();
-                dateList.add(trigger.getFireTimeAfter(plan.getLastFireTime()));
-            } catch (RuntimeException e) {
-                log.error("Cron表达式错误：" + cron, e);
-            }
+            cronList.add(String.format("%d %d %d %s %s ?", cycleExeTime.getSecond(), cycleExeTime.getMinute(), cycleExeTime.getHour(), dayCron, monthCron));
         }
 
-        return dateList;
-    }
-
-    private String getMonthCron(PlanJob plan) {
-        List<Integer> monthOptions = plan.getPlanOptionList().stream().filter(o -> o > PlanEnum.TWO_STAGE_OPTION).collect(Collectors.toList());
-        return monthOptions.stream().map(MONTH_MAP::get).flatMap(List::stream).sorted().map(Objects::toString).collect(Collectors.joining(DELIMITER));
+        return cronList;
     }
 
     private List<String> getDayCronList(PlanJob plan) {

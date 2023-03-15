@@ -2,7 +2,6 @@ package com.xxl.job.admin.extend.helper.strategy;
 
 import com.xxl.job.admin.core.thread.JobScheduleHelper;
 import com.xxl.job.admin.extend.enums.PlanJobStatusEnum;
-import com.xxl.job.admin.extend.helper.AbstractPlanService;
 import com.xxl.job.admin.extend.model.PlanJob;
 import com.xxl.job.core.util.DateUtil;
 import com.xxl.job.extend.biz.enums.PlanEnum;
@@ -20,7 +19,7 @@ import java.util.Objects;
  */
 @Slf4j
 @Component
-class AssignPlanStrategy extends AbstractPlanService {
+class AssignPlanStrategy extends AbstractPlanStrategy {
 
     private static final long WIN_TIME = JobScheduleHelper.PRE_READ_MS;
 

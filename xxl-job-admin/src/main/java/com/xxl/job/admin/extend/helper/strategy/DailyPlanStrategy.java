@@ -1,6 +1,5 @@
 package com.xxl.job.admin.extend.helper.strategy;
 
-import com.xxl.job.admin.extend.helper.AbstractPlanService;
 import com.xxl.job.admin.extend.model.PlanJob;
 import com.xxl.job.extend.biz.enums.PlanEnum;
 import org.quartz.DailyTimeIntervalScheduleBuilder;
@@ -15,7 +14,7 @@ import java.time.LocalTime;
  * @date 2023-03-08 11:13
  */
 @Component
-class DailyPlanStrategy extends AbstractPlanService {
+class DailyPlanStrategy extends AbstractPlanStrategy {
 
     @Override
     public PlanEnum getType() {

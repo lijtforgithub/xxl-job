@@ -1,6 +1,7 @@
-package com.xxl.job.admin.extend.helper;
+package com.xxl.job.admin.extend.helper.strategy;
 
 import com.xxl.job.admin.extend.enums.PlanJobStatusEnum;
+import com.xxl.job.admin.extend.helper.PlanService;
 import com.xxl.job.admin.extend.model.PlanJob;
 import com.xxl.job.extend.biz.enums.PlanEnum;
 import org.quartz.ScheduleBuilder;
@@ -15,7 +16,7 @@ import java.util.Objects;
  * @author LiJingTang
  * @date 2023-03-08 11:59
  */
-public abstract class AbstractPlanService implements PlanService {
+public abstract class AbstractPlanStrategy implements PlanService {
 
     protected static final String LAST_DAY_OF_MONTH = "L";
     protected static final String DELIMITER = ",";

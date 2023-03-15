@@ -1,11 +1,11 @@
 package com.xxl.job.executor.test;
 
-import com.xxl.job.extend.biz.enums.PlanEnum;
-import com.xxl.job.extend.biz.model.AssignPlanJobParam;
-import com.xxl.job.extend.biz.model.CancelJobParam;
-import com.xxl.job.extend.biz.model.CyclePlanJobParam;
-import com.xxl.job.extend.biz.model.builder.PlanJobBuilder;
-import com.xxl.job.extend.helper.XxlJobExtendHelper;
+import com.youma.xxljob.extend.biz.enums.PlanEnum;
+import com.youma.xxljob.extend.biz.model.AssignPlanJobParam;
+import com.youma.xxljob.extend.biz.model.CancelJobParam;
+import com.youma.xxljob.extend.biz.model.CyclePlanJobParam;
+import com.youma.xxljob.extend.biz.model.builder.PlanJobBuilder;
+import com.youma.xxljob.extend.helper.XxlJobExtendHelper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,7 +19,7 @@ public class XxlJobExecutorExampleBootApplicationTests {
 	public void testAssign() {
 		AssignPlanJobParam planJobParam = PlanJobBuilder.assignPlanJobBuilder()
 				.withJobHandler("demoJobHandler")
-				.withDateTime("2023-03-14 16:00:00", "2023-03-15 13:00:00", "2023-03-16 02:00:00")
+				.withDateTime("2023-03-15 13:00:00", "2023-03-16 02:00:00")
 				.withHandlerParam("回调参数")
 				.build();
 		XxlJobExtendHelper.buildClient().addPlan(planJobParam);
@@ -32,7 +32,7 @@ public class XxlJobExecutorExampleBootApplicationTests {
 				.withJobHandler("demoJobHandler")
 				.withCycleExeTime("08:00:00")
 				.withExeOnce(true)
-				.withJobKey("3")
+//				.withJobKey("3")
 //				.withCycleInterval(2)
 				.withHandlerParam("每日任务")
 				.build();
@@ -45,7 +45,8 @@ public class XxlJobExecutorExampleBootApplicationTests {
 				.withPlanType(PlanEnum.WEEK)
 				.withJobHandler("demoJobHandler")
 				.withCycleExeTime("14:00:00")
-				.withPlanOption(3,7)
+				.withCycleInterval(2)
+				.withPlanOption(1)
 				.withHandlerParam(PlanEnum.WEEK.getDesc())
 				.build();
 		XxlJobExtendHelper.buildClient().addPlan(planJobParam);
@@ -58,8 +59,7 @@ public class XxlJobExecutorExampleBootApplicationTests {
 				.withJobHandler("demoJobHandler")
 				.withCycleExeTime("20:00:00")
 				.withCycleInterval(2)
-				.withPlanOption(-1)
-//				.withStartDateTime("2023-01-01 10:00:00")
+				.withPlanOption(5, 1)
 				.build();
 		XxlJobExtendHelper.buildClient().addPlan(planJobParam);
 	}

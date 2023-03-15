@@ -51,9 +51,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.xuxueli</groupId>
+            <groupId>com.youma</groupId>
             <artifactId>xxl-job-extend</artifactId>
-            <version>${project.parent.version}</version>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
     </dependencies>
