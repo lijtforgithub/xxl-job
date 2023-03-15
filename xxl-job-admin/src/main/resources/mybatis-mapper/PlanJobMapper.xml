@@ -1,0 +1,99 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+            "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xxl.job.admin.extend.dao.PlanJobDao">
+
+    <sql id="table">xxl_plan_job</sql>
+    <sql id="select_field">
+        SELECT id, app_name, job_group, job_id, last_fire_time, next_fire_time, status, cancel_reason, create_time, update_time,
+            job_key, job_handler, job_desc, handler_param, plan_type, plan_option, assign_date_time, cycle_interval, cycle_exe_time, exe_once, start_date_time, end_date_time
+        FROM <include refid="table"/>
+    </sql>
+
+    <resultMap id="beanMap" type="com.xxl.job.admin.extend.model.PlanJob">
+        <result column="app_name" property="appName" />
+        <result column="job_group" property="jobGroup" />
+        <result column="job_id" property="jobId" />
+        <result column="last_fire_time" property="lastFireTime" />
+        <result column="next_fire_time" property="nextFireTime" />
+        <result column="cancel_reason" property="cancelReason" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+        <result column="job_key" property="jobKey" />
+        <result column="job_handler" property="jobHandler" />
+        <result column="job_desc" property="jobDesc" />
+        <result column="plan_type" property="planType" />
+        <result column="plan_option" property="planOption" />
+        <result column="assign_date_time" property="assignDateTime" />
+        <result column="cycle_interval" property="cycleInterval" />
+        <result column="cycle_exe_time" property="cycleExeTime" />
+        <result column="exe_once" property="exeOnce" />
+        <result column="start_date_time" property="startDateTime" />
+        <result column="end_date_time" property="endDateTime" />
+    </resultMap>
+
+
+    <select id="selectById" resultMap="beanMap">
+        <include refid="select_field"/>
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByJobId" resultMap="beanMap">
+        <include refid="select_field"/>
+        WHERE job_id = #{jobId}
+        LIMIT 1
+    </select>
+
+    <select id="selectByKey" resultType="long">
+        <include refid="select_field"/>
+        WHERE app_name = #{appName}
+            AND job_handler = #{jobHandler}
+            AND job_key = #{jobKey}
+        LIMIT 1
+    </select>
+
+    <select id="selectMonitorPage" resultMap="beanMap">
+        <include refid="select_field"/>
+        <where>
+            update_time BETWEEN #{minUpdateTime} AND #{maxUpdateTime}
+            <if test="type == 1"> AND (status IN (0, 1, 2) OR (status = 20 AND job_id IS NOT NULL)) </if>
+            <if test="type == 2"> AND status = 10 AND job_id > 0 </if>
+        </where>
+        ORDER BY update_time DESC
+        LIMIT #{pageSize}
+    </select>
+
+    <select id="monitorLock" resultType="string">
+        SELECT lock_name FROM xxl_job_lock WHERE lock_name = 'plan_monitor_lock' FOR UPDATE
+    </select>
+
+
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO <include refid="table"/>
+        (
+            app_name, job_group, job_id, next_fire_time, create_time, update_time, job_key, job_handler, job_desc, handler_param,
+            plan_type, plan_option, assign_date_time, cycle_interval, cycle_exe_time, exe_once, start_date_time, end_date_time
+        )
+        VALUES
+        (
+            #{appName}, #{jobGroup}, #{jobId}, #{nextFireTime}, #{createTime}, #{updateTime}, #{jobKey}, #{jobHandler}, #{jobDesc}, #{handlerParam},
+            #{planType}, #{planOption}, #{assignDateTime}, #{cycleInterval}, #{cycleExeTime}, #{exeOnce}, #{startDateTime}, #{endDateTime}
+        )
+    </insert>
+
+    <update id="updateById">
+        UPDATE <include refid="table"/>
+        <set>
+            <if test="jobId != null and jobId != 0"> job_id = #{jobId}, </if>
+            <if test="jobId == 0"> job_id = null, </if>
+            <if test="lastFireTime != null"> last_fire_time = #{lastFireTime}, </if>
+            <!-- 考虑到nextFireTime为null情况 lastFireTime肯定不为空 -->
+            <if test="nextFireTime != null or lastFireTime != null"> next_fire_time = #{nextFireTime}, </if>
+            <if test="status != null"> status = #{status}, </if>
+            <if test="cancelReason != null"> cancel_reason = #{cancelReason}, </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+</mapper>
