@@ -10,11 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -27,12 +27,13 @@ import java.util.stream.Collectors;
  * @date 2023-03-09 13:09
  */
 @Slf4j
-public class XxlJobExtendConfig implements ApplicationContextAware {
+public class XxlJobExtendConfig implements ApplicationContextAware, SmartLifecycle {
 
     private static List<AdminInfo> adminInfoList;
     private static String xxlJobAppName = null;
 
     private ApplicationContext applicationContext;
+    private volatile boolean initialized = false;
 
     @Bean
     PlanJobClient planJobClient() {
@@ -44,19 +45,39 @@ public class XxlJobExtendConfig implements ApplicationContextAware {
         return new XxlJobExtendHelper();
     }
 
-    @EventListener(ContextRefreshedEvent.class)
-    public void contextRefreshed() throws IllegalAccessException {
+    @Override
+    public void start() {
         String[] beanNames = applicationContext.getBeanNamesForType(XxlJobExecutor.class);
         if (beanNames.length == 0) {
             throw new RuntimeException("请先开启xxl-job客户端配置");
         }
 
-        initAppName();
-        initAdminInfo();
-        log.info("xxl-job-extend 初始化配置完成");
+        try {
+            initAppName();
+            initAdminInfo();
+            log.info("xxl-job-extend 初始化配置完成");
+            initialized = true;
+        } catch (IllegalAccessException e) {
+            log.info("xxl-job-extend 初始化配置异常", e);
+        }
     }
 
-    void initAppName() throws IllegalAccessException {
+    @Override
+    public void stop() {
+        adminInfoList.clear();
+    }
+
+    @Override
+    public boolean isRunning() {
+        return initialized;
+    }
+
+    @Override
+    public int getPhase() {
+        return 0;
+    }
+
+    private void initAppName() throws IllegalAccessException {
         if (Objects.isNull(xxlJobAppName)) {
             XxlJobExecutor xxlJobExecutor = applicationContext.getBean(XxlJobExecutor.class);
             Field appname = ReflectionUtils.findField(XxlJobExecutor.class, "appname");
@@ -67,7 +88,7 @@ public class XxlJobExtendConfig implements ApplicationContextAware {
         }
     }
 
-    void initAdminInfo() throws IllegalAccessException {
+    private void initAdminInfo() throws IllegalAccessException {
         if (Objects.isNull(adminInfoList)) {
             List<AdminBiz> list = XxlJobExecutor.getAdminBizList();
             if (CollectionUtils.isEmpty(list)) {
@@ -84,8 +105,13 @@ public class XxlJobExtendConfig implements ApplicationContextAware {
 
             for (AdminBiz adminBiz : list) {
                 AdminInfo info = new AdminInfo();
-                info.setAddressUrl(addressUrl.get(adminBiz).toString());
-                info.setAccessToken(accessToken.get(adminBiz).toString());
+                Object address = addressUrl.get(adminBiz);
+                if (Objects.isNull(address) || !StringUtils.hasLength(address.toString())) {
+                    continue;
+                }
+                info.setAddressUrl(address.toString());
+                Object value = accessToken.get(adminBiz);
+                info.setAccessToken(Objects.nonNull(value) ? value.toString(): null);
                 adminInfoList.add(info);
             }
             log.info("xxlJobAdmin = {}", adminInfoList.stream().map(AdminInfo::getAddressUrl).collect(Collectors.toList()));
