@@ -5,9 +5,11 @@ import com.xxl.job.extend.biz.enums.PlanEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -55,12 +57,35 @@ class MonthPlanStrategy extends AbstractMultiCronStrategy {
         LocalTime cycleExeTime = plan.getCycleExeTime();
 
         if (plan.getCycleInterval() > 1) {
-            Integer startMonth = LocalDateTime.ofInstant(plan.getStartDateTime().toInstant(), ZoneId.systemDefault()).getMonthValue();
+            int startMonth = getReasonableStart(plan);
             return String.format("%d %d %d %s %d/%d ?", cycleExeTime.getSecond(), cycleExeTime.getMinute(), cycleExeTime.getHour(), day,
                     startMonth, plan.getCycleInterval());
         } else {
             return String.format("%d %d %d %s * ?", cycleExeTime.getSecond(), cycleExeTime.getMinute(), cycleExeTime.getHour(), day);
         }
+    }
+
+    /**
+     * 计算合理的开始时间 如果开始月不符合选项 则顺延下月开始
+     */
+    private int getReasonableStart(PlanJob plan) {
+        LocalDateTime startDateTime = LocalDateTime.ofInstant(plan.getStartDateTime().toInstant(), ZoneId.systemDefault());
+        LocalDate startDate = startDateTime.toLocalDate();
+
+        List<Integer> options = plan.getPlanOptionList().stream().sorted().collect(Collectors.toList());
+        if (options.contains(-1)) {
+            // 月底最后一天
+            int lastDay = startDate.with(TemporalAdjusters.lastDayOfMonth()).getDayOfMonth();
+            options.add(lastDay);
+        }
+
+        int dayOfMonth = startDate.getDayOfMonth();
+        Integer lastOption = options.get(options.size() - 1);
+        if (dayOfMonth > lastOption || (dayOfMonth == lastOption && startDateTime.toLocalTime().compareTo(plan.getCycleExeTime()) > 0)) {
+            return startDate.plusMonths(1).getMonthValue();
+        }
+
+        return startDate.getMonthValue();
     }
 
 }

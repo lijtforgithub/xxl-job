@@ -4,6 +4,7 @@ import com.xxl.job.admin.extend.enums.PlanJobStatusEnum;
 import com.xxl.job.admin.extend.helper.PlanService;
 import com.xxl.job.admin.extend.model.PlanJob;
 import com.xxl.job.extend.biz.enums.PlanEnum;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.ScheduleBuilder;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
@@ -16,6 +17,7 @@ import java.util.Objects;
  * @author LiJingTang
  * @date 2023-03-08 11:59
  */
+@Slf4j
 public abstract class AbstractPlanStrategy implements PlanService {
 
     protected static final String LAST_DAY_OF_MONTH = "L";
@@ -40,6 +42,7 @@ public abstract class AbstractPlanStrategy implements PlanService {
         }
     }
 
+    @Override
     public Date getNextFireTime(PlanJob plan) {
         if (isEnd(plan)) {
             return null;
@@ -49,7 +52,10 @@ public abstract class AbstractPlanStrategy implements PlanService {
     }
 
     protected Date nextFireTime(PlanJob plan) {
-        ScheduleBuilder<?> scheduleBuilder = buildSchedule(plan);
+        return nextFireTime(plan, buildSchedule(plan));
+    }
+
+    protected Date nextFireTime(PlanJob plan, ScheduleBuilder<?> scheduleBuilder) {
         if (Objects.isNull(scheduleBuilder)) {
             log.warn("ScheduleBuilder 为空");
             return null;
