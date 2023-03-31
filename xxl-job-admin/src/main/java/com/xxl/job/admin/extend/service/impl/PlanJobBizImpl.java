@@ -38,6 +38,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.xxl.job.admin.core.thread.JobScheduleHelper.PRE_READ_MS;
@@ -50,10 +51,13 @@ import static com.xxl.job.admin.core.thread.JobScheduleHelper.PRE_READ_MS;
 @Service
 public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
 
+    private static final String TEMP_KEY = "PLAN-ID";
+
     @Value("${xxl.job.extend.alarmEmail:}")
     private String alarmEmail;
     @Autowired
     private MonitorProperties monitorProperties;
+    private volatile LocalDateTime minTime = LocalDateTime.of(2023, 1, 1, 0, 0);
 
     @Autowired
     private ApplicationContext applicationContext;
@@ -70,8 +74,10 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReturnT<String> addPlan(PlanJobParam param) {
+        boolean hasKey = false;
         PlanJobParamDTO paramDTO = (PlanJobParamDTO) param;
         if (StringUtils.hasLength(paramDTO.getJobKey())) {
+            hasKey = true;
             Long id = planJobDao.selectByKey(paramDTO.getAppName(), paramDTO.getJobHandler(), paramDTO.getJobKey());
             Assert.isNull(id, String.format("计划任务【%s:%s】已存在", paramDTO.getJobHandler(), paramDTO.getJobKey()));
         } else {
@@ -86,29 +92,40 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
         // 校验参数和设置一些默认值 很重要 顺序不能调整
         planService.checkAndInitPlan(planJob);
         Date nextFireTime = Boolean.TRUE.equals(planJob.getExeOnce()) ? new Date(System.currentTimeMillis() + PRE_READ_MS) : planService.getNextFireTime(planJob);
-        Integer jobId = null;
+        XxlJobInfo job = null;
 
         if (Objects.isNull(nextFireTime)) {
             log.warn("计划任务【{}:{}:{}】已结束", paramDTO.getAppName(), paramDTO.getJobHandler(), paramDTO.getJobKey());
         } else {
             planJob.setNextFireTime(nextFireTime);
-            jobId = saveJobInfo(planJob);
+            job = saveJobInfo(planJob, hasKey);
             planJob.setStatus(PlanJobStatusEnum.SYNC_JOB.getValue());
+            planJob.setJobId(job.getId());
         }
 
-        planJob.setJobId(jobId);
         planJobDao.insert(planJob);
 
         log.info("保存一条计划任务：{}", GsonTool.toJson(planJob));
+        updateJobDesc(hasKey, paramDTO, planJob.getId(), job);
 
         return new ReturnT<>(planJob.getId().toString());
     }
 
-    private Integer saveJobInfo(PlanJob planJob) {
+    private void updateJobDesc(boolean hasKey, PlanJobParamDTO paramDTO, Long planJobId, XxlJobInfo job) {
+        if (!hasKey && !StringUtils.hasLength(paramDTO.getJobDesc()) && Objects.nonNull(job)) {
+            CompletableFuture.runAsync(() -> {
+                String desc = job.getJobDesc().replace(TEMP_KEY, planJobId.toString());
+                xxlJobInfoDao.updateDesc(job.getId(), desc);
+                log.info("更新任务[{}]描述：{}", job.getId(), desc);
+            });
+        }
+    }
+
+    private XxlJobInfo saveJobInfo(PlanJob planJob, boolean hasKey) {
         XxlJobInfo jobInfo = new XxlJobInfo();
         jobInfo.setJobGroup(planJob.getJobGroup());
         jobInfo.setJobCron(ExtendUtils.PLAN_JOB_FLAG);
-        jobInfo.setJobDesc(getJobDesc(planJob));
+        jobInfo.setJobDesc(getJobDesc(planJob, hasKey));
         jobInfo.setAddTime(planJob.getCreateTime());
         jobInfo.setAuthor(ExtendUtils.PLAN_JOB_AUTH);
         jobInfo.setExecutorRouteStrategy(ExecutorRouteStrategyEnum.CONSISTENT_HASH.name());
@@ -126,7 +143,7 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
             jobInfo.setAlarmEmail(alarmEmail);
         }
         xxlJobInfoDao.save(jobInfo);
-        return jobInfo.getId();
+        return jobInfo;
     }
 
     private PlanJob assemblePlanJob(PlanJobParamDTO paramDTO, Integer jobGroup) {
@@ -150,14 +167,14 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
         return planJob;
     }
 
-    private String getJobDesc(PlanJob planJob) {
+    private String getJobDesc(PlanJob planJob, boolean hasKey) {
         if (StringUtils.hasLength(planJob.getJobDesc())) {
             return planJob.getJobDesc();
         }
 
         PlanEnum planEnum = PlanEnum.match(planJob.getPlanType());
         if (PlanEnum.ASSIGN == planEnum) {
-            return String.format("%s[%s]", planEnum.getDesc(), planJob.getJobKey());
+            return String.format("%s[%s]", planEnum.getDesc(), hasKey ? planJob.getJobKey() : TEMP_KEY);
         } else {
             String desc = planJob.getCycleInterval() > 1 ? planEnum.getDesc().replace("每", "每" + planJob.getCycleInterval()) : planEnum.getDesc();
             StringBuilder strBuilder = new StringBuilder("");
@@ -189,7 +206,7 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
                 }
             }
 
-            desc = String.format("%s%s%s[%s]", desc, strBuilder, planJob.getCycleExeTime(), planJob.getJobKey());
+            desc = String.format("%s%s%s[%s]", desc, strBuilder, planJob.getCycleExeTime(), hasKey ? planJob.getJobKey() : TEMP_KEY);
             if (desc.length() > 255) {
                 desc = desc.substring(0, 255);
             }
@@ -298,11 +315,10 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
     @Transactional(rollbackFor = Exception.class)
     public void monitor() {
         planJobDao.monitorLock();
-
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime maxUpdateTime = now.minusDays(monitorProperties.getStatusCheckDays());
 
-        LocalDateTime minUpdateTime = maxUpdateTime.minusDays(2).toLocalDate().atStartOfDay();
+        LocalDateTime maxUpdateTime = now.minusDays(monitorProperties.getStatusCheckDays());
+        LocalDateTime minUpdateTime = Objects.isNull(minTime) ? maxUpdateTime.minusDays(2).toLocalDate().atStartOfDay() : minTime;
         List<PlanJob> planList = planJobDao.selectMonitorPage(minUpdateTime, maxUpdateTime, monitorProperties.getPageSize(), 1);
 
         for (PlanJob planJob : planList) {
@@ -318,7 +334,7 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
 
         if (Boolean.TRUE.equals(monitorProperties.getOpenClear())) {
             maxUpdateTime = now.minusDays(monitorProperties.getEndJobRetentionDays());
-            minUpdateTime = maxUpdateTime.minusDays(2).toLocalDate().atStartOfDay();
+            minUpdateTime = Objects.isNull(minTime) ? maxUpdateTime.minusDays(2).toLocalDate().atStartOfDay() : minTime;
             planList = planJobDao.selectMonitorPage(minUpdateTime, maxUpdateTime, monitorProperties.getPageSize(), 2);
 
             try {
@@ -335,6 +351,8 @@ public class PlanJobBizImpl implements PlanJobBiz, PlanJobService {
                 log.error("监控计划清除结束任务", e);
             }
         }
+
+        minTime = null;
     }
 
     private PlanJob testPlan(PlanJob planJob) {

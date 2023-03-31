@@ -45,5 +45,6 @@ public interface XxlJobInfoDao {
 
 	public int scheduleUpdate(XxlJobInfo xxlJobInfo);
 
+	int updateDesc(@Param("id") Integer id, @Param("jobDesc") String jobDesc);
 
 }
