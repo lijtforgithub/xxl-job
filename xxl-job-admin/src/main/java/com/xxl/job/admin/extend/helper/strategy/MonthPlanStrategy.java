@@ -42,7 +42,7 @@ class MonthPlanStrategy extends AbstractMultiCronStrategy {
         }
 
         if (!days.isEmpty()) {
-            String str = days.stream().map(Object::toString).collect(Collectors.joining(","));
+            String str = days.stream().map(Object::toString).collect(Collectors.joining(DELIMITER));
             cronList.add(getCron(plan, str));
         }
 

@@ -190,6 +190,12 @@
 		WHERE id = #{id}
 	</update>
 
+	<update id="updateDesc">
+		UPDATE xxl_job_info
+		SET job_desc = #{jobDesc}
+		WHERE id = #{id}
+	</update>
+
 	<delete id="delete" parameterType="java.util.HashMap">
 		DELETE
 		FROM xxl_job_info
